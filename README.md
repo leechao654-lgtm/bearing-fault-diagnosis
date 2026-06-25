@@ -138,7 +138,7 @@ also computed at the speed-corrected characteristic frequency for each file indi
 | Envelope (vibration only) | Inter-frequency ratios (BPFO/BPFI) | Ratio of outer-race to inner-race energy — primary discriminator between OR and IR damage types |
 
 
-![Time-domain envelope — bandpass filter + Hilbert transform](plots/04_envelope_comparison.png)
+![Time-domain envelope — bandpass filter + Hilbert transform](plots/04a_envelope_time_domain.png)
 
 ![Envelope spectrum comparison — BPFO/BPFI characteristic peaks](plots/04_envelope_comparison.png)
 
@@ -283,22 +283,7 @@ jupyter lab BearingFault_Training.ipynb   # downloads data automatically if miss
 ```bash
 docker compose -f deployment/docker-compose.yml up --build
 # → http://localhost:8000          (simple upload page)
-# → http://localhost:8000/docs     (Swagger UI — API contract, not for casual use)
 ```
-
-```bash
-curl -X POST http://localhost:8000/predict_mat \
-  -F "file=@paderborn_data/mat/KA01/N15_M07_F10_KA01_1.mat"
-```
-
-**Endpoints:**
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/` | Plain upload page — pick a `.mat` file, click Diagnose, see the result |
-| `GET` | `/health` | Service status + serving run ID |
-| `POST` | `/predict_mat` | Raw `.mat` upload → fault class prediction |
-
 ---
 
 ## Project Structure
