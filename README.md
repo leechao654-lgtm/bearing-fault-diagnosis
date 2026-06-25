@@ -1,8 +1,8 @@
 # Bearing Fault Diagnosis via Motor Vibration and Current Signals
 
-End-to-end predictive maintenance case study following the **CRISP-DM** methodology.
-Sensorless bearing fault detection in electric drive systems using DSP feature engineering,
-classical ML, and unsupervised anomaly detection — from raw `.mat` files to a deployed REST API.
+End-to-end predictive maintenance case study based on CRISP-DM methodology. Covers bearing fault detection in electric drive systems — from raw signal processing and feature engineering, through classical ML-based anomaly detection, to cloud deployment.
+
+![Work flow](plots/Flow.jpg)
 
 ---
 
@@ -117,20 +117,28 @@ also computed at the speed-corrected characteristic frequency for each file indi
 | Time | Skewness | Asymmetry of the amplitude distribution — healthy signals are near-symmetric |
 | Time | Shape factor | RMS ÷ mean absolute value — measures how "spiky" the waveform is relative to its average |
 | Time | Impulse factor | Peak ÷ mean absolute value — amplifies single large impulses; sensitive to early pitting faults |
+
+![Time-domain signal comparison — Healthy / OR damage / IR damage](plots/01_time_domain_comparison.png)
+
+
+| Domain | Feature | What it measures |
+|---|---|---|
 | Frequency | Spectral centroid | Weighted average frequency — shifts upward as fault energy moves to higher frequencies |
 | Frequency | PSD (Power Spectral Density) band energies | Signal power in specific frequency bands — load-invariant when expressed as ratios |
 | Frequency | Dominant frequency | Frequency of maximum energy — detects new periodic components introduced by a fault |
 | Frequency | WPD (Wavelet Packet Decomposition) sub-band energies | Signal energy in equal-width frequency sub-bands — captures how fault energy distributes across the spectrum without needing exact defect frequencies |
-| Envelope (vibration only) | BPFO / BPFI amplitudes (1×–3× harmonics) | Strength of each defect frequency in the demodulated envelope — directly quantifies fault impulse repetition rate |
-| Envelope (vibration only) | Inter-frequency ratios (BPFO/BPFI) | Ratio of outer-race to inner-race energy — primary discriminator between OR and IR damage types |
-
-![Time-domain signal comparison — Healthy / OR damage / IR damage](plots/01_time_domain_comparison.png)
 
 ![FFT spectrum comparison — three bearing classes](plots/02_fft_comparison.png)
 
 ![WPD sub-band energy distribution](plots/06_wpd_spectrum.png)
 
-![Time-domain envelope — bandpass filter + Hilbert transform](plots/04a_envelope_time_domain.png)
+| Domain | Feature | What it measures |
+|---|---|---|
+| Envelope (vibration only) | BPFO / BPFI amplitudes (1×–3× harmonics) | Strength of each defect frequency in the demodulated envelope — directly quantifies fault impulse repetition rate |
+| Envelope (vibration only) | Inter-frequency ratios (BPFO/BPFI) | Ratio of outer-race to inner-race energy — primary discriminator between OR and IR damage types |
+
+
+![Time-domain envelope — bandpass filter + Hilbert transform](plots/04_envelope_comparison.png)
 
 ![Envelope spectrum comparison — BPFO/BPFI characteristic peaks](plots/04_envelope_comparison.png)
 
@@ -218,12 +226,27 @@ XGBoost. Manual `ParameterGrid` + `StratifiedGroupKFold` for Isolation Forest an
 
 Both unsupervised models are trained on healthy samples only with no fault labels.
 
+![Confusion Matrices — Supervised Models (Three classes)](plots/07_confusion_matrices.png)
+![Confusion Matrices — Unsupervised Models (Healthy vs Fault)](plots/07b_confusion_matrices_unsupervised.png)
+
+
+
 **Threshold selection and operating-point adjustment:**
 Unsupervised model thresholds are selected from the test-set PR curve — among all thresholds
 meeting the recall target, the one with maximum precision is chosen as the operating point.
 AND fusion takes the intersection of both models' predictions, significantly reducing false alarms
 at the cost of some recall. The `FUSION_MODE` constant in the notebook switches between
 `'and'`, `'or'`, and `'soft'` (score-weighted blend) fusion strategies with a single change.
+![Precision-Recall Curve — Unsupervised Models](plots/06f_pr_curve_unsupervised.png)
+
+**Explainability (SHAP):**
+SHAP `TreeExplainer` decomposes each test-set prediction into per-feature contributions, showing how
+much each DSP feature pushed the model toward Healthy, OR_damage, or IR_damage — computed on `X_test`
+only, never on training data, so the explanation itself can't leak information the model didn't
+actually use to predict. The top-ranked features are dominated by **envelope-based ratios**
+(`vib_env_ratio_BPFO_BPFI_*`) and **BPFI envelope amplitudes** — consistent with the domain theory
+that inner-race impulse rate and the outer/inner energy ratio are the primary discriminators between
+OR and IR damage (see Feature Engineering above).
 
 ![SHAP feature importance — RF multi-class (Healthy / OR / IR)](plots/06_shap_summary.png)
 
@@ -237,12 +260,14 @@ F1-macro, and the best pipeline. The registered model is loaded by the inference
 **FastAPI** — new `.mat` files are passed raw; the pipeline handles signal normalisation,
 DSP feature extraction, and prediction internally.
 
-**Docker** — the FastAPI service is packaged in a Docker container, ensuring consistent execution
-across development, staging, and production environments.
+**Docker / local edge deployment** — the FastAPI service is packaged in a Docker container and
+runs as a self-contained service on your own machine, demonstrating the same deployment path a
+real edge device would use.
 
-**CI/CD** — GitHub Actions: automated testing and deployment of model updates, eliminating manual intervention.
+**CI** — GitHub Actions runs the unit test suite on every push.
 
-**AWS infrastructure** — hosts the Docker container, providing a remotely accessible inference endpoint.
+All deployment artefacts (Dockerfile, compose file, inference dependencies) live in
+[`deployment/`](deployment/).
 
 ### Quick Start
 
@@ -253,25 +278,24 @@ pip install -r requirements.txt
 jupyter lab BearingFault_Training.ipynb   # downloads data automatically if missing
 ```
 
-**Live API — deployed on AWS Elastic Beanstalk (eu-west-1, always on):**
+**Local / edge inference (requires training notebook to have been run first):**
 
 ```bash
-curl -X POST http://bearing-fault-env.eba-qprqprfs.eu-west-1.elasticbeanstalk.com/predict_mat \
-  -F "file=@paderborn_data/mat/KA01/N15_M07_F10_KA01_1.mat"
+docker compose -f deployment/docker-compose.yml up --build
+# → http://localhost:8000          (simple upload page)
+# → http://localhost:8000/docs     (Swagger UI — API contract, not for casual use)
 ```
 
-Interactive docs: `http://bearing-fault-env.eba-qprqprfs.eu-west-1.elasticbeanstalk.com/docs`
-
 ```bash
-# Local inference (requires training notebook to have been run first)
-docker compose up --build
-# → http://localhost:8000/docs
+curl -X POST http://localhost:8000/predict_mat \
+  -F "file=@paderborn_data/mat/KA01/N15_M07_F10_KA01_1.mat"
 ```
 
 **Endpoints:**
 
 | Method | Path | Description |
 |---|---|---|
+| `GET` | `/` | Plain upload page — pick a `.mat` file, click Diagnose, see the result |
 | `GET` | `/health` | Service status + serving run ID |
 | `POST` | `/predict_mat` | Raw `.mat` upload → fault class prediction |
 
@@ -283,22 +307,20 @@ docker compose up --build
 bearing-fault-diagnosis/
 ├── BearingFault_Training.ipynb   # End-to-end CRISP-DM pipeline (DSP → ML → MLflow)
 ├── requirements.txt              # Pinned training dependencies
-├── requirements-inference.txt    # Minimal inference dependencies (Docker)
-├── Dockerfile                    # FastAPI inference service container
-├── docker-compose.yml            # Local deployment (mounts mlruns/, port 8000)
-├── Dockerrun.aws.json            # AWS Elastic Beanstalk configuration
+├── deployment/                   # Everything needed to run the inference service locally
+│   ├── Dockerfile                # FastAPI inference service container
+│   ├── docker-compose.yml        # Local / edge deployment (mounts mlruns/, port 8000)
+│   └── requirements-inference.txt   # Minimal inference dependencies (Docker)
 ├── .github/workflows/
-│   ├── ci.yml                    # Unit tests on every push
-│   └── deploy.yml                # Build → ECR → Elastic Beanstalk
-├── tests/
-│   └── test_features.py          # DSP feature extraction unit tests
+│   └── ci.yml                    # Unit tests + deployment smoke test on every push
 ├── utils/
 │   ├── download_dataset.py       # Zenodo dataset downloader
 │   ├── data_loader.py            # Signal loading, label mapping, characteristic frequencies
-│   ├── dsp_features.py           # DSP feature extraction pipeline
+│   ├── dsp_features.py           # DSP feature extraction pipeline (+ self_check())
 │   ├── ml_classification.py      # sklearn Pipeline + StratifiedGroupKFold training
 │   ├── inference_api.py          # FastAPI service
-│   └── plot_style.py             # Consistent figure styling
+│   ├── plot_style.py             # Consistent figure styling
+│   └── test_features.py          # DSP feature extraction unit tests
 └── mlruns/                       # MLflow tracking + model registry
 ```
 

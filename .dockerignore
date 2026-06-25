@@ -8,8 +8,8 @@ paderborn_data/
 data/
 
 # MLflow artefacts
-# mlruns/ is intentionally NOT ignored — CI downloads it from S3 before building
-# so it gets baked into the image. Local dev uses docker-compose volume mount instead.
+# mlruns/ is intentionally NOT ignored — the Dockerfile COPYs it so the model
+# is baked into the image. Local dev uses the docker-compose volume mount instead.
 mlflow.db
 
 # Notebooks and training-only files
@@ -17,6 +17,9 @@ mlflow.db
 *.ipynb_checkpoints/
 plots/
 *.pkl
+
+# Unit tests (live in utils/ alongside the code they test, but are dev/CI-only)
+utils/test_features.py
 
 # Python build artefacts
 __pycache__/

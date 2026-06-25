@@ -1,8 +1,0 @@
-{
-  "ImageRepository": {
-    "ImageIdentifier": "110080810044.dkr.ecr.eu-west-1.amazonaws.com/bearing-fault-api:latest",
-    "ImageConfiguration": {"Port": "8000"},
-    "ImageRepositoryType": "ECR"
-  },
-  "AutoDeploymentsEnabled": true
-}

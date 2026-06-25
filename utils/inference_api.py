@@ -23,6 +23,7 @@ import mlflow
 import numpy as np
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 # Ensure the project root is on sys.path so utils sub-modules are importable
@@ -40,7 +41,7 @@ from utils.dsp_features import extract_features_from_bearing  # noqa: E402
 # Config
 # ---------------------------------------------------------------------------
 _BASE_DIR      = Path(__file__).parent.parent
-MLRUNS_URI     = f"file:///{_BASE_DIR / 'mlruns'}"
+MLRUNS_URI     = f"file:///{(_BASE_DIR / 'mlruns').as_posix()}"
 CLASS_NAMES    = ["Healthy", "OR_damage", "IR_damage"]
 MODEL_NAME     = "bearing_fault_rf"        # registered model name in MLflow Registry
 SELECTOR_NAME  = "bearing_fault_selector"  # registered selector name in MLflow Registry
@@ -149,6 +150,71 @@ class PredictionOutput(BaseModel):
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
+# Plain HTML/JS — no separate frontend build, no new dependency. Swagger's
+# /docs is for exploring the API contract; this is for actually using it.
+_UPLOAD_PAGE = """
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Bearing Fault Diagnosis</title>
+<style>
+  body { font-family: sans-serif; max-width: 480px; margin: 60px auto; text-align: center; }
+  h1 { font-size: 1.4rem; }
+  input[type=file] { margin: 20px 0; }
+  button { padding: 8px 20px; font-size: 1rem; cursor: pointer; }
+  #result { margin-top: 24px; font-size: 1.3rem; font-weight: bold; min-height: 1.6em; }
+  .healthy { color: #2a7d2a; }
+  .fault { color: #b33; }
+  .error { color: #b33; font-weight: normal; font-size: 1rem; }
+</style>
+</head>
+<body>
+  <h1>Bearing Fault Diagnosis</h1>
+  <p>Upload a Paderborn <code>.mat</code> file to classify it.</p>
+  <input type="file" id="file" accept=".mat">
+  <br>
+  <button onclick="diagnose()">Diagnose</button>
+  <div id="result"></div>
+
+<script>
+async function diagnose() {
+  const fileInput = document.getElementById("file");
+  const result = document.getElementById("result");
+  if (!fileInput.files.length) {
+    result.innerHTML = '<span class="error">Choose a .mat file first.</span>';
+    return;
+  }
+  result.textContent = "Diagnosing...";
+  const formData = new FormData();
+  formData.append("file", fileInput.files[0]);
+  try {
+    const res = await fetch("/predict_mat", { method: "POST", body: formData });
+    const data = await res.json();
+    if (!res.ok) {
+      result.innerHTML = '<span class="error">' + (data.detail || "Prediction failed") + '</span>';
+      return;
+    }
+    const label = data.labels[0];
+    const cls = label === "Healthy" ? "healthy" : "fault";
+    result.innerHTML = 'Result: <span class="' + cls + '">' + label + '</span>';
+  } catch (err) {
+    result.innerHTML = '<span class="error">' + err + '</span>';
+  }
+}
+</script>
+</body>
+</html>
+"""
+
+
+@app.get("/", response_class=HTMLResponse)
+def upload_page():
+    """Simple upload form — POSTs to /predict_mat and shows the result."""
+    return _UPLOAD_PAGE
+
+
 @app.get("/health")
 def health():
     """Health check."""

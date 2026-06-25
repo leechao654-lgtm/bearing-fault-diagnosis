@@ -1,0 +1,14 @@
+aliases: []
+creation_timestamp: 1782306643079
+current_stage: None
+description: null
+last_updated_timestamp: 1782306643079
+name: bearing_fault_selector
+run_id: d7e19fa9134c40418a3dfb17898c9c35
+run_link: null
+source: file:///c:/8. ds/bearing-fault-diagnosis/mlruns/315850400606662100/d7e19fa9134c40418a3dfb17898c9c35/artifacts/feature_selector
+status: READY
+status_message: null
+storage_location: file:///c:/8. ds/bearing-fault-diagnosis/mlruns/315850400606662100/d7e19fa9134c40418a3dfb17898c9c35/artifacts/feature_selector
+user_id: null
+version: 21

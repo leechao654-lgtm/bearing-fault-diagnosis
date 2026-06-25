@@ -1,0 +1,15 @@
+artifact_uri: file:///c:/8. DSPandML/bearing-fault-diagnosis/mlruns/315850400606662100/1592f2bdcca7436cba2684551ffc3cb7/artifacts
+end_time: 1782325551659
+entry_point_name: ''
+experiment_id: '315850400606662100'
+lifecycle_stage: active
+run_id: 1592f2bdcca7436cba2684551ffc3cb7
+run_name: ALL_20260624_202534
+run_uuid: 1592f2bdcca7436cba2684551ffc3cb7
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1782325534866
+status: 3
+tags: []
+user_id: '20215518'

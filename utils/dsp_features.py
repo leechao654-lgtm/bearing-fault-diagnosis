@@ -566,6 +566,70 @@ def signal_to_cwt_image(signal: np.ndarray, fs: int,
 
 
 # ============================================================
+# Self-check (shared by notebook pre-flight gate + unit tests)
+# ============================================================
+
+def self_check(use_current: bool = True, use_vibration: bool = True) -> Dict[str, float]:
+    """Extract features from a synthetic signal and sanity-check the result.
+
+    Generates a synthetic bearing signal (50 Hz sine + noise) and runs it
+    through extract_features_from_bearing(), then asserts the output is
+    non-empty, finite, and has the expected channel-prefix structure. Used
+    as a fast pre-flight gate before training (notebook Section 0) so a
+    broken DSP pipeline fails in seconds instead of after a long retrain.
+
+    Args:
+        use_current: Include phase-current channels.
+        use_vibration: Include the vibration channel.
+
+    Returns:
+        The extracted feature dict.
+
+    Raises:
+        AssertionError: If any sanity check fails.
+    """
+    try:
+        from data_loader import BearingSignal, calc_characteristic_frequencies
+    except ImportError:
+        from utils.data_loader import BearingSignal, calc_characteristic_frequencies
+
+    rng = np.random.default_rng(42)
+    fs, n_samples, rpm = 64_000, 256_000, 1500
+    t64k = np.arange(n_samples, dtype=np.float64) / fs
+    base = np.sin(2 * np.pi * 50 * t64k) + 0.1 * rng.standard_normal(n_samples)
+
+    sig = BearingSignal(
+        bearing_code="SELFCHECK", setting="N15_M07_F10", measurement_id=0,
+        label_3class=0, label_name="Healthy", damage_origin="healthy",
+        phase_current_1=base.astype(np.float32),
+        phase_current_2=(base * 0.5).astype(np.float32),
+        vibration=(base * 0.8).astype(np.float32),
+        time_64k=t64k.astype(np.float32),
+        speed=np.full(16_000, rpm, dtype=np.float32),
+        torque=np.full(16_000, 0.7, dtype=np.float32),
+        force=np.full(16_000, 1000.0, dtype=np.float32),
+        time_4k=np.arange(16_000, dtype=np.float32) / 4000,
+        temperature=np.full(4, 25.0, dtype=np.float32),
+    )
+
+    feats = extract_features_from_bearing(
+        sig,
+        use_current=use_current,
+        use_vibration=use_vibration,
+        characteristic_freqs=calc_characteristic_frequencies(rpm),
+    )
+
+    assert isinstance(feats, dict) and len(feats) > 0, "No features extracted"
+    assert all(np.isfinite(v) for v in feats.values()), "Non-finite feature value(s)"
+    if use_vibration:
+        assert any(k.startswith("vib_") for k in feats), "Vibration features missing"
+    if use_current:
+        assert any(k.startswith("c1_") for k in feats), "Current features missing"
+
+    return feats
+
+
+# ============================================================
 # Quick test
 # ============================================================
 if __name__ == '__main__':

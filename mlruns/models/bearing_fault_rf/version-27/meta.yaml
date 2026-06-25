@@ -1,0 +1,14 @@
+aliases: []
+creation_timestamp: 1782384061008
+current_stage: None
+description: null
+last_updated_timestamp: 1782384061008
+name: bearing_fault_rf
+run_id: dcee5e7e30f04dd8a970e8283a869def
+run_link: null
+source: file:///c:/8. DSPandML/bearing-fault-diagnosis/mlruns/315850400606662100/dcee5e7e30f04dd8a970e8283a869def/artifacts/best_model
+status: READY
+status_message: null
+storage_location: file:///c:/8. DSPandML/bearing-fault-diagnosis/mlruns/315850400606662100/dcee5e7e30f04dd8a970e8283a869def/artifacts/best_model
+user_id: null
+version: 27

@@ -1,9 +1,10 @@
 # =============================================================
-# CI — Run Unit Tests
+# CI — Unit Tests + Deployment Smoke Test
 # =============================================================
 # Runs on every push and pull request.
-# Does NOT need AWS credentials or model artifacts.
-# Tests only use synthetic signals (numpy), so no dataset required.
+# Does NOT need AWS credentials or the Paderborn dataset:
+#   - unit tests use synthetic signals
+#   - the deployment image is built from the mlruns/ already committed to git
 # =============================================================
 
 name: CI
@@ -30,16 +31,16 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-          cache-dependency-path: requirements-inference.txt
+          cache-dependency-path: deployment/requirements-inference.txt
 
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requirements-inference.txt
+          pip install -r deployment/requirements-inference.txt
           pip install pytest pytest-cov
 
       - name: Run unit tests
-        run: pytest tests/ -v --tb=short --cov=utils --cov-report=term-missing
+        run: pytest utils/test_features.py -v --tb=short --cov=utils --cov-report=term-missing
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -47,3 +48,34 @@ jobs:
         with:
           name: coverage-report
           path: .coverage
+
+  docker-smoke-test:
+    name: Docker Build & Smoke Test (deployment image)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build deployment image
+        run: docker build -f deployment/Dockerfile -t bearing-fault-api:ci .
+
+      - name: Run container
+        run: docker run -d --name ci-smoke -p 8000:8000 bearing-fault-api:ci
+
+      - name: Wait for /health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health; then
+              echo "Service healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Service did not become healthy in time"
+          docker logs ci-smoke
+          exit 1
+
+      - name: Tear down
+        if: always()
+        run: docker rm -f ci-smoke || true
