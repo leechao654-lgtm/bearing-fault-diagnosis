@@ -1,0 +1,12 @@
+Test setting: N09_M07_F10
+Cross-condition F1=0.3179
+
+              precision    recall  f1-score   support
+
+     Healthy       0.50      1.00      0.67        10
+   OR_damage       1.00      1.00      1.00        10
+   IR_damage       0.00      0.00      0.00        10
+
+    accuracy                           0.67        30
+   macro avg       0.50      0.67      0.56        30
+weighted avg       0.50      0.67      0.56        30

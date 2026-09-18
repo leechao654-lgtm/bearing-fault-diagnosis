@@ -1,0 +1,12 @@
+Accuracy=0.7033
+F1-macro=0.7117
+
+              precision    recall  f1-score   support
+
+     Healthy       0.94      0.73      0.82       200
+   OR_damage       0.54      0.68      0.60       200
+   IR_damage       0.72      0.70      0.71       200
+
+    accuracy                           0.70       600
+   macro avg       0.73      0.70      0.71       600
+weighted avg       0.73      0.70      0.71       600

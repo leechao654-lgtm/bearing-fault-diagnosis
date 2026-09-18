@@ -1,0 +1,13 @@
+Best config: Norm + shaft-order
+Accuracy=0.7367
+F1-macro=0.7395
+
+              precision    recall  f1-score   support
+
+     Healthy       0.92      0.87      0.89       100
+   OR_damage       0.60      0.65      0.62       100
+   IR_damage       0.72      0.69      0.70       100
+
+    accuracy                           0.74       300
+   macro avg       0.74      0.74      0.74       300
+weighted avg       0.74      0.74      0.74       300
